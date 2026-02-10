@@ -174,10 +174,12 @@ class HARtoExcelConverter {
         const minTime = Math.min(...times).toFixed(2);
         const maxTime = Math.max(...times).toFixed(2);
         const medianTime = this.median(times).toFixed(2);
+        const p90Time = this.percentile(times, 90).toFixed(2);
         const p95Time = this.percentile(times, 95).toFixed(2);
         const avgSize = (sizes.reduce((a, b) => a + b, 0) / totalRequests).toFixed(2);
         const totalSize = sizes.reduce((a, b) => a + b, 0).toFixed(2);
         const avgTTFB = (waits.reduce((a, b) => a + b, 0) / totalRequests).toFixed(2);
+        const p90TTFB = this.percentile(waits, 90).toFixed(2);
         const p95TTFB = this.percentile(waits, 95).toFixed(2);
 
         // 2 blank rows gap
@@ -208,7 +210,8 @@ class HARtoExcelConverter {
             ['Median', '', '', '', '', medianTime, '', '', '', '', '', '', ''],
             ['Min', '', '', '', '', minTime, '', '', '', '', '', '', ''],
             ['Max', '', '', '', '', maxTime, '', '', '', '', '', '', ''],
-            ['95th Percentile', '', '', '', '', p95Time, '', '', '', '', '', '', p95TTFB],
+            ['90th Percentile (P90)', '', '', '', '', p90Time, '', '', '', '', '', '', p90TTFB],
+            ['95th Percentile (P95)', '', '', '', '', p95Time, '', '', '', '', '', '', p95TTFB],
             ['Total Transfer Size', '', '', '', '', '', totalSize, '', '', '', '', '', ''],
         ];
 
@@ -315,7 +318,8 @@ class HARtoExcelConverter {
             ['Median', 'The middle value (50th percentile) when sorted. More representative of typical performance than average.'],
             ['Min', 'The fastest/smallest observed value. Represents best-case performance.'],
             ['Max', 'The slowest/largest observed value. Represents worst-case performance.'],
-            ['95th Percentile (P95)', 'Value below which 95% of requests fall. Indicates the performance experienced by most users, excluding extreme outliers.'],
+            ['90th Percentile (P90)', 'Value below which 90% of requests fall. Useful for identifying performance that affects the top 10% slowest requests. Often used alongside P95 for a fuller picture.'],
+            ['95th Percentile (P95)', 'Value below which 95% of requests fall. Indicates the performance experienced by most users, excluding extreme outliers. Industry standard for SLA definitions.'],
             ['Total Transfer Size (KB)', 'Sum of all response sizes in kilobytes (KB). Represents total data downloaded for the page.'],
 
             // Page load timings
