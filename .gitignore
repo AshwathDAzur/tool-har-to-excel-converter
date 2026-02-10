@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 *output.xlsx
 harRepo
+lighthouseRepo

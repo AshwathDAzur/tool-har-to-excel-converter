@@ -1,549 +1,438 @@
-# HAR-to-Excel Performance Analysis Tool
+# UI Performance Analysis Toolkit
 
-A powerful Node.js utility for converting HTTP Archive (HAR) files into professionally formatted, multi-sheet Excel workbooks. This tool is designed to streamline API performance baselining and analysis by automatically organizing network data into clear, actionable spreadsheets with comprehensive timing breakdowns and statistical baselines.
+A Node.js toolkit for extracting, analyzing, and reporting UI performance metrics from **HAR files** and **Lighthouse audit reports**. Converts raw performance data into professionally formatted, multi-sheet Excel workbooks with statistical baselines, timing breakdowns, and comprehensive helper documentation.
 
 ## Overview
 
-The HAR-to-Excel Performance Analysis Tool processes raw HAR (HTTP Archive) format files—JSON records of web browser interactions with web sites—and transforms them into beautifully formatted Excel spreadsheets. Each HAR file becomes a dedicated sheet in the output workbook, with automatic URL categorization, detailed timing analysis, statistical baselines, and page load metrics.
+This toolkit consists of two complementary tools that together provide a complete picture of UI performance:
 
-This tool is essential for performance engineers, QA teams, and DevOps professionals who need to establish performance baselines, compare performance metrics across environments, and track optimization efforts over time.
+| Tool | Input | Measures | Output |
+|------|-------|----------|--------|
+| **HAR Parser** (`har-to-excel.js`) | HAR files from browser DevTools | Network-level performance (API response times, TTFB, transfer sizes, timing breakdown) | `output.xlsx` |
+| **Lighthouse Parser** (`lighthouseParcer.js`) | Lighthouse JSON exports | Rendering performance (Core Web Vitals, main thread activity, JS execution, resource efficiency) | `lighthouse-output.xlsx` |
+
+Together they answer:
+- **HAR**: How fast are individual network requests? Where is time spent in the request lifecycle?
+- **Lighthouse**: How fast does the page render, become interactive, and stabilize visually?
 
 ## Features
 
-- **Auto-Discovery of HAR Files**: Automatically scans the `harRepo/` directory and processes all `.har` files without manual configuration
-- **One Sheet Per HAR File**: Each HAR file creates a dedicated worksheet, with the sheet name derived from the filename (truncated to 31 characters to meet Excel limits)
-- **Comprehensive Data Columns**: Each request is logged with:
-  - Request number (#)
-  - HTTP method (GET, POST, PUT, DELETE, etc.)
-  - Full endpoint URL with protocol, domain, path, and query parameters
-  - Auto-categorized URL category based on path segments
-  - HTTP response status code
-  - Total response time in milliseconds
-  - Response body size in kilobytes
-  - Complete timing breakdown (13 detailed metrics)
+### HAR Parser (`har-to-excel.js`)
 
-- **Detailed Timing Breakdown**: Separates request time into distinct phases:
-  - Blocked (ms): Time waiting for network connection availability
-  - DNS (ms): Domain name resolution time
-  - Connect (ms): TCP connection establishment time
-  - SSL (ms): TLS/SSL handshake time
-  - Send (ms): Time to transmit HTTP request
-  - Wait/TTFB (ms): Time to First Byte; server processing time
-  - Receive (ms): Time to download response body
+- **Auto-Discovery**: Scans `harRepo/` directory and processes all `.har` files
+- **One Sheet Per HAR File**: Each file creates a dedicated worksheet (sheet name from filename, truncated to 31 chars)
+- **14 Data Columns Per Request**:
+  - #, Method, Endpoint URL, Category, Status, Response (ms), Size (KB)
+  - Timing Breakdown: Blocked, DNS, Connect, SSL, Send, Wait/TTFB, Receive (all in ms)
+- **Automatic URL Categorization**: Extracts meaningful path segments, filters common prefixes (`/api`, `/v1`, `/rest`, etc.), identifies static assets
+- **Observed Baseline Statistics**: Total Requests, Average, Median, Min, Max, P90, P95, Total Transfer Size (for both Response time and TTFB)
+- **Page Load Timings**: DOMContentLoaded and Page Load (onLoad) per page
+- **Helper Sheet**: Documents all metrics with descriptions and units
 
-- **Automatic URL Categorization**: Intelligently categorizes URLs by extracting meaningful path segments while filtering out common prefixes like `/api`, `/v1`, `/v2`, `/rest`, `/web`, `/app`, and others. Static assets (JS, CSS, images, fonts) are automatically identified as 'Static Asset'
+### Lighthouse Parser (`lighthouseParcer.js`)
 
-- **Observed Baseline Statistics**: Automatically calculated for each sheet:
-  - Total Requests: Number of HTTP requests captured
-  - Average: Arithmetic mean of response times and sizes
-  - Median: Middle value (50th percentile) for typical performance representation
-  - Min: Best-case (fastest) performance
-  - Max: Worst-case (slowest) performance
-  - 95th Percentile (P95): Performance threshold capturing 95% of requests
-  - Total Transfer Size: Sum of all response sizes
+- **Auto-Discovery**: Scans `lighthouseRepo/` directory and processes all `.json` files
+- **One Sheet Per JSON File**: Each Lighthouse export creates a dedicated worksheet
+- **8 Sections Per Page**:
+  1. **Audit Information** — URL, fetch time, Lighthouse version, gather mode, benchmark index
+  2. **Category Scores** — Performance, Accessibility, Best Practices (color-coded: green/orange/red)
+  3. **Performance Metrics** — FCP, LCP, TBT, CLS, Speed Index, TTI, Max Potential FID (with raw values, scores, and ratings)
+  4. **Server & Network** — Server Response Time (TTFB), Total Byte Weight
+  5. **Main Thread Breakdown** — Script Evaluation, Parsing, Style & Layout, HTML/CSS Parsing, Rendering, GC (with totals)
+  6. **JavaScript Execution (Top 10)** — Heaviest scripts by CPU time, scripting time, parse/compile time
+  7. **Resource Summary** — Breakdown by type (Script, Stylesheet, Image, Document, etc.) with request count and transfer size
+  8. **Diagnostics & Opportunities** — Unused JS/CSS, render-blocking resources, missing compression, with potential savings
+- **Score Color Coding**: Green (90-100 Good), Orange (50-89 Needs Work), Red (0-49 Poor)
+- **Helper Sheet**: Documents all Lighthouse metrics, scoring thresholds, and interpretation guidance
 
-- **Page Load Timings**: Captures browser navigation and page load metrics:
-  - DOMContentLoaded (ms): Time until HTML is parsed and DOM is ready
-  - Page Load/onLoad (ms): Time until all resources are fully loaded
+### Shared Styling
 
-- **Helper Reference Sheet**: Dedicated "Helper" worksheet documenting all column headers, metrics, and their descriptions with proper units
-
-- **Professional Excel Styling**:
-  - Header row: Dark blue background (#394B67) with white text
-  - Section headers: Dark gray background (#2C3E50) with white text
-  - Data rows: Zebra striping with light gray background (#F2F4F7) for even rows
-  - Endpoint URLs: Consolas font (8.5pt) for easy URL parsing
-  - All other text: Arial font (10pt) for clarity
-  - Thin borders around all cells for structure and readability
-  - Properly sized columns with text wrapping on long URLs
+Both tools use consistent professional Excel styling:
+- **Header row**: Dark blue background (#394B67) with bold white text
+- **Section headers**: Dark navy (#2C3E50) with white text
+- **Sub-headers**: Blue-grey (#394B67) with white text
+- **Data rows**: Zebra striping with light grey (#F2F4F7) for even rows
+- **URLs/Metric names**: Consolas font for monospace readability
+- **All other text**: Arial 10pt
+- **Thin borders** around all cells for structure
 
 ## Prerequisites
 
-- **Node.js**: Version 12.0 or higher
+- **Node.js**: Version 12.0 or higher (14+ recommended)
 - **npm**: Included with Node.js
 
 ## Installation
 
-1. Clone or download the project to your local machine
-
-2. Navigate to the project directory (where `package.json` is located):
+1. Navigate to the project directory (where `package.json` is located):
    ```bash
    cd /path/to/project
    ```
 
-3. Install dependencies:
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-   This will install the following packages:
-   - `exceljs` (4.4.0): Excel workbook creation and manipulation
-   - `fs-extra` (11.3.3): Enhanced file system operations
-   - `xlsx` (0.18.5): Additional spreadsheet functionality
+   This installs the following packages:
+   - `exceljs`: Excel workbook creation, styling, and cell manipulation
+   - `fs-extra`: Enhanced file system operations
 
 ## Usage
 
-### Basic Workflow
+### HAR Parser
 
-1. **Prepare HAR Files**: Place all `.har` files you want to analyze in the `harRepo/` directory within the project root
-
-2. **Run the Tool**:
+1. **Capture HAR files** from browser DevTools (see [How to Capture HAR Files](#how-to-capture-har-files))
+2. **Place `.har` files** in the `harRepo/` directory
+3. **Run**:
    ```bash
    node har-to-excel.js
    ```
+4. **Output**: `output.xlsx` in the project root
 
-3. **Review Output**: Open the generated `output.xlsx` file in Microsoft Excel or compatible spreadsheet applications
+```
+# Example output:
+Found 2 HAR file(s) in /path/to/project/harRepo
 
-### Example
+Reading HAR file: /path/to/project/harRepo/Landing.har
+Parsed 87 entries from Landing.har
+Added sheet: "Landing" with 87 rows
 
-```bash
-# From the project root directory
-node har-to-excel.js
+Reading HAR file: /path/to/project/harRepo/WellProgram.har
+Parsed 87 entries from WellProgram.har
+Added sheet: "WellProgram" with 87 rows
 
-# Expected output:
-# Found 3 HAR file(s) in /path/to/project/harRepo
-#
-# Reading HAR file: /path/to/project/harRepo/homepage.har
-# Parsed 42 entries from homepage.har
-# Added sheet: "homepage" with 42 rows
-#
-# Reading HAR file: /path/to/project/harRepo/api-test.har
-# Parsed 128 entries from api-test.har
-# Added sheet: "api-test" with 128 rows
-#
-# ...
-#
-# Added sheet: "Helper"
-# Excel file saved: output.xlsx
-# Conversion completed successfully!
+Added sheet: "Helper"
+Excel file saved: output.xlsx
+Conversion completed successfully!
 ```
 
-### Output File
+### Lighthouse Parser
 
-The tool generates `output.xlsx` in the project root directory. This Excel workbook contains:
-- One worksheet per HAR file (named after the HAR filename)
-- One "Helper" worksheet with metric reference documentation
+1. **Run Lighthouse audits** from Chrome DevTools (see [How to Capture Lighthouse Reports](#how-to-capture-lighthouse-reports))
+2. **Place `.json` exports** in the `lighthouseRepo/` directory
+3. **Run**:
+   ```bash
+   node lighthouseParcer.js
+   ```
+4. **Output**: `lighthouse-output.xlsx` in the project root
 
-The output file is ready for immediate use—open it in Excel, Google Sheets, LibreOffice Calc, or any compatible spreadsheet application.
+```
+# Example output:
+Found 2 Lighthouse JSON file(s) in /path/to/project/lighthouseRepo
+
+Reading Lighthouse JSON: /path/to/project/lighthouseRepo/landing.json
+Parsed metrics for: https://your-app-url/landing-page
+Added sheet: "landing"
+
+Reading Lighthouse JSON: /path/to/project/lighthouseRepo/wellprogram.json
+Parsed metrics for: https://your-app-url/well-program
+Added sheet: "wellprogram"
+
+Added sheet: "Helper"
+Excel file saved: lighthouse-output.xlsx
+Conversion completed successfully!
+```
 
 ## How to Capture HAR Files
 
-To collect HAR files from your browser sessions, follow these steps:
-
 ### Chrome / Edge / Chromium Browsers
 
-1. **Open DevTools**: Press `F12` or right-click on the page and select "Inspect"
-
-2. **Navigate to Network Tab**: Click the "Network" tab in the DevTools panel
-
-3. **Load Your Page**: If the Network tab wasn't open when you started, reload the page (Ctrl+R or Cmd+R) to capture network activity
-
-4. **Export HAR**:
-   - Right-click anywhere in the Network activity table
-   - Select "Save all as HAR with content" (or similar, depending on browser version)
-   - Choose a save location and filename (e.g., `homepage.har`)
-
-5. **Move to harRepo**: Move or copy the `.har` file to the `harRepo/` directory
+1. Open DevTools (`F12` or `Ctrl + Shift + I`)
+2. Navigate to the **Network** tab
+3. Enable **Preserve Logs** and **Disable Cache** for accurate captures
+4. Load the page and wait until it becomes fully static/idle
+5. Right-click in the Network table and select **Save all as HAR with content**
+6. Save with a descriptive name (e.g., `landing.har`) and move to `harRepo/`
 
 ### Firefox
 
-1. **Open DevTools**: Press `F12` or right-click on the page and select "Inspect"
-
-2. **Navigate to Network Tab**: Click the "Network" tab
-
-3. **Load Your Page**: Reload the page if needed to capture activity
-
-4. **Export HAR**:
-   - Right-click on any entry in the Network table
-   - Select "Save All As HAR"
-   - Choose a location and filename
-
-5. **Move to harRepo**: Move or copy the `.har` file to the `harRepo/` directory
+1. Open DevTools (`F12`)
+2. Navigate to the **Network** tab
+3. Load the page and wait for completion
+4. Right-click on any entry and select **Save All As HAR**
+5. Move the file to `harRepo/`
 
 ### Safari
 
-1. **Enable Develop Menu**: Go to Preferences > Advanced and check "Show Develop menu in menu bar"
+1. Enable Develop Menu: Preferences > Advanced > "Show Develop menu in menu bar"
+2. Open Web Inspector via Develop menu
+3. Navigate to the **Network** tab, reload the page
+4. Right-click and select **Export HAR**
+5. Move the file to `harRepo/`
 
-2. **Open Develop Menu**: Click "Develop" in the menu bar and select "Show Web Inspector"
+### Best Practices for HAR Capture
 
-3. **Network Tab**: Click the "Network" tab
+- Enable **Preserve Logs** to retain entries across navigations
+- Enable **Disable Cache** to simulate first-time user experience
+- Wait until the page is **fully static/idle** before exporting
+- Perform **3-5 runs per page** with cache cleared between iterations to account for DNS, network jitter, and cold cache variability
+- Repeat captures **periodically** to establish trend data and detect regressions
 
-4. **Load Your Page**: Reload the page to capture activity
+## How to Capture Lighthouse Reports
 
-5. **Export HAR**:
-   - Right-click in the Network panel
-   - Select "Export HAR"
-   - Choose a location and filename
+### Chrome DevTools (Recommended)
 
-6. **Move to harRepo**: Move or copy the `.har` file to the `harRepo/` directory
+1. Open DevTools (`F12` or `Ctrl + Shift + I`)
+2. Navigate to the **Lighthouse** tab
+3. Configure the audit:
+   - **Mode**: Navigation
+   - **Device**: Desktop (or Mobile depending on target)
+   - **Categories**: Check Performance, Accessibility, Best Practices
+4. Click **Analyze page load** and wait for completion (do not interact with the page)
+5. Click the **export icon** (top-right of report) and select **Save as JSON**
+6. Save with a descriptive name (e.g., `landing.json`) and move to `lighthouseRepo/`
+
+### CLI (For Automation)
+
+```bash
+npx lighthouse https://your-app-url --output=json --output-path=./lighthouseRepo/landing.json --preset=desktop
+```
+
+### Best Practices for Lighthouse Capture
+
+- Run **3-5 audits per page** — Lighthouse scores fluctuate due to CPU load and network conditions
+- **Close other tabs** and background applications to reduce noise
+- Use consistent **device and throttling settings** across runs
+- Export as **JSON** (not HTML) for machine-readable processing
 
 ## Output Structure
 
-### Data Sheets (One Per HAR File)
+### HAR Output (`output.xlsx`)
 
-Each sheet corresponding to a HAR file contains three main sections:
+Each sheet contains three sections:
 
-#### 1. Request Data Table
-A detailed table of all HTTP requests with the following columns:
+#### 1. Request Data Table (14 columns)
 
 | Column | Description |
 |--------|-------------|
 | # | Sequential request number |
 | Method | HTTP method (GET, POST, etc.) |
 | Endpoint URL | Full request URL |
-| Category | Auto-derived category from URL path |
+| Category | Auto-derived from URL path |
 | Status | HTTP response status code |
-| Response (ms) | Total request time in milliseconds |
-| Size (KB) | Response body size in kilobytes |
+| Response (ms) | Total round-trip time |
+| Size (KB) | Response body size |
 | Blocked (ms) | Time waiting for network slot |
 | DNS (ms) | Domain resolution time |
 | Connect (ms) | TCP connection time |
 | SSL (ms) | TLS/SSL handshake time |
-| Send (ms) | HTTP request transmission time |
-| Wait/TTFB (ms) | Time to first byte / server processing time |
+| Send (ms) | Request transmission time |
+| Wait/TTFB (ms) | Server processing time |
 | Receive (ms) | Response download time |
 
-#### 2. Observed Baseline Section
-Statistical summary metrics calculated from all requests:
+#### 2. Observed Baseline
 
-- **Total Requests**: Count of all HTTP requests captured
-- **Average**: Mean value across all requests
-- **Median**: Middle value (50th percentile); often more representative than average
-- **Min**: Minimum/fastest observed value
-- **Max**: Maximum/slowest observed value
-- **95th Percentile**: Threshold capturing performance for 95% of requests
-- **Total Transfer Size**: Aggregate downloaded data in KB
+| Metric | Description |
+|--------|-------------|
+| Total Requests | Count of HTTP requests |
+| Average | Mean response time and size |
+| Median | 50th percentile (typical performance) |
+| Min | Fastest observed value |
+| Max | Slowest observed value |
+| P90 | 90th percentile |
+| P95 | 95th percentile (industry-standard SLA metric) |
+| Total Transfer Size | Aggregate data downloaded |
 
-#### 3. Page Load Timings Section (If Available)
-Browser navigation metrics extracted from the HAR file:
+#### 3. Page Load Timings
 
-- **Page Title**: The page being loaded
-- **DOMContentLoaded (ms)**: Time until HTML parsing and DOM readiness
-- **Page Load (ms)**: Time until all resources fully loaded (onLoad event)
+| Metric | Description |
+|--------|-------------|
+| DOMContentLoaded (ms) | Time until DOM is ready |
+| Page Load (ms) | Time until all resources loaded |
 
-### Helper Sheet
+### Lighthouse Output (`lighthouse-output.xlsx`)
 
-The "Helper" worksheet provides comprehensive documentation of all metrics:
+Each sheet contains eight sections:
 
-- **Data Columns Section**: Description of each column in the request table
-- **Timing Breakdown Section**: Detailed explanation of each timing phase
-- **Observed Baseline Metrics Section**: Statistical measures and their use cases
-- **Page Load Timings Section**: Navigation metrics and their significance
+#### 1. Audit Information
+URL, fetch timestamp, Lighthouse version, gather mode, benchmark index.
 
-This sheet is essential for new team members and serves as a reference for interpreting baseline metrics.
+#### 2. Category Scores
+Overall scores (0-100) for Performance, Accessibility, Best Practices — color-coded by rating.
 
-## Column Reference
+#### 3. Performance Metrics (Core Web Vitals)
 
-### Main Data Columns
+| Metric | Unit | Good | Poor |
+|--------|------|------|------|
+| First Contentful Paint (FCP) | ms | < 1.8s | > 3.0s |
+| Largest Contentful Paint (LCP) | ms | < 2.5s | > 4.0s |
+| Total Blocking Time (TBT) | ms | < 200ms | > 600ms |
+| Cumulative Layout Shift (CLS) | unitless | < 0.1 | > 0.25 |
+| Speed Index (SI) | ms | < 3.4s | > 5.8s |
+| Time to Interactive (TTI) | ms | — | — |
+| Max Potential FID | ms | — | — |
 
-| Column | Type | Units | Description |
-|--------|------|-------|-------------|
-| # | Integer | N/A | Sequential row number for each network request |
-| Method | String | N/A | HTTP method (GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, etc.) |
-| Endpoint URL | String | N/A | Complete URL including protocol, domain, path, and query parameters |
-| Category | String | N/A | Auto-derived from URL path; helps group related endpoints |
-| Status | Integer | HTTP Code | HTTP response status code (200, 301, 404, 500, etc.) |
-| Response (ms) | Decimal | Milliseconds | Total round-trip time for the complete request/response cycle |
-| Size (KB) | Decimal | Kilobytes | Uncompressed response body size |
+#### 4. Server & Network
+Server response time (TTFB) and total byte weight.
 
-### Timing Breakdown Columns
+#### 5. Main Thread Breakdown
+Time distribution across: Script Evaluation, Script Parsing & Compilation, Style & Layout, Parse HTML & CSS, Rendering, Garbage Collection, Other.
 
-| Column | Type | Units | Description |
-|--------|------|-------|-------------|
-| Blocked (ms) | Decimal | Milliseconds | Time request waited in browser queue for available connection |
-| DNS (ms) | Decimal | Milliseconds | Time to resolve domain name to IP address (0 if cached) |
-| Connect (ms) | Decimal | Milliseconds | Time to establish TCP connection to server (0 if reused) |
-| SSL (ms) | Decimal | Milliseconds | Time for TLS/SSL handshake (0 if HTTP or connection reused) |
-| Send (ms) | Decimal | Milliseconds | Time to transmit HTTP request headers and body to server |
-| Wait/TTFB (ms) | Decimal | Milliseconds | Time waiting for server response; indicates server-side processing time |
-| Receive (ms) | Decimal | Milliseconds | Time to download complete response body from server |
+#### 6. JavaScript Execution (Top 10 Scripts)
+Heaviest scripts ranked by total CPU time, with scripting and parse/compile breakdown.
 
-**Note**: Sum of all timing phases approximates the total Response (ms), though there may be minor variations due to rounding and parallel processing of some phases.
+#### 7. Resource Summary
+Request count and transfer size grouped by resource type (Script, Stylesheet, Image, Document, etc.).
 
-## Observed Baseline Metrics
+#### 8. Diagnostics & Opportunities
+Flagged audits (unused JS/CSS, render-blocking resources, missing compression) with scores and potential savings.
 
-Understanding baseline metrics is crucial for performance analysis and improvement tracking.
+### Helper Sheets
 
-### Total Requests
-The total number of HTTP requests captured in the HAR file for a given page or flow. This helps establish the scope of analysis and can highlight unexpectedly large request volumes indicating potential optimization opportunities.
+Both tools include a dedicated **Helper** worksheet documenting every metric with descriptions, units, and interpretation guidance.
 
-### Average (Mean)
-The arithmetic mean of all values (response times, sizes, or TTFB). Useful as a general indicator but can be skewed by extreme outliers. For performance analysis, compare average with median to identify outlier impact.
+## Performance Coverage Matrix
 
-**Use Case**: General performance indicator; good for trend tracking
-
-### Median (50th Percentile)
-The middle value when all measurements are sorted. More representative of typical user experience than average because outliers have less influence. If average and median differ significantly, investigate outliers.
-
-**Use Case**: Better representation of typical performance than average
-
-### Min (Minimum)
-The fastest or smallest observed value. Represents best-case performance under ideal conditions. Generally less relevant than median or P95 for baseline establishment.
-
-**Use Case**: Reference point for best-case scenarios; identify potential optimization targets
-
-### Max (Maximum)
-The slowest or largest observed value. Represents worst-case performance. Can highlight performance problems, but single outliers shouldn't drive decisions—investigate P95 instead.
-
-**Use Case**: Identify performance problems and anomalies; track regressions
-
-### 95th Percentile (P95)
-The value below which 95% of observations fall. This is the most important metric for performance baselining. Indicates real user experience for the vast majority while ignoring extreme outliers. Industry standard for SLA definitions.
-
-**Use Case**: Performance SLAs; primary metric for performance baselines and comparisons
-
-### Total Transfer Size (KB)
-The sum of all response body sizes in kilobytes. Helps assess overall bandwidth consumption and identifies pages that download excessive data. Consider comparing across different network conditions or optimizing large resources.
-
-**Use Case**: Network optimization; compare across device classes (mobile vs. desktop)
-
-## Best Practices for Performance Baselining
-
-Effective performance baselining requires consistent methodology to ensure meaningful comparisons over time and across environments.
-
-### Recording Best Practices
-
-#### Multiple Captures
-- Record each page/flow **3-5 times** in sequence to capture natural variation
-- Average results across captures for more reliable baselines
-- This accounts for temporary network fluctuations and transient delays
-
-#### Cold Cache vs. Warm Cache
-- **Cold Cache**: Clear browser cache before recording to simulate first-time visitors (Ctrl+Shift+Delete or browser settings)
-- **Warm Cache**: Record multiple times in succession for cached resource performance
-- Document which approach you used and maintain consistency
-
-#### Network Conditions
-- Record under consistent network conditions (wired connection, no heavy traffic)
-- Use browser throttling if testing specific network conditions (3G, 4G, etc.)
-- Document network conditions used for future comparison
-
-#### Page Load Completeness
-- Ensure all page interactions are complete before stopping the HAR capture
-- Wait for dynamic content loading if using SPAs (Single Page Applications)
-- Confirm page load progress indicators show 100% completion
-
-### Baseline Comparison
-
-#### Environment Comparison
-- Capture HAR files from different environments (dev, staging, production)
-- Compare P95 response times and TTFB metrics across environments
-- Investigate significant differences (>5-10% variation)
-
-#### Pre/Post Release Comparison
-- Establish baselines before deploying changes
-- Capture HAR files immediately after deployment
-- Compare key metrics (P95, Total Transfer Size, TTFB)
-- Flag regressions (increases) in P95 metrics immediately
-
-#### Category Analysis
-- Focus on API endpoints (Category != 'Static Asset') for server performance
-- Track Static Asset performance separately for CDN/caching effectiveness
-- Identify slow categories and investigate specific endpoints
-
-#### Time-Series Tracking
-- Maintain a spreadsheet or database of baseline metrics over time
-- Track P95 and median for each major page/flow
-- Create graphs to visualize performance trends
-- Set alerts for regressions exceeding 5-10% thresholds
-
-### Interpretation Tips
-
-- **Focus on P95, not Average**: P95 represents performance for 95% of users; average is skewed by outliers
-- **TTFB is Key**: Wait/TTFB (ms) indicates server-side performance; high values suggest backend issues
-- **Size Matters**: Total Transfer Size directly impacts load time on slow networks; prioritize large resources
-- **Blocked Time**: High blocked values suggest browser connection limits (typically 6 concurrent connections)
-- **Compare Categories Separately**: API endpoints and static assets have different performance characteristics
-
-### Tools for Tracking
-
-- Maintain a log of baseline HAR captures with timestamps and environment info
-- Version control baseline Excel files to track historical changes
-- Use conditional formatting to highlight regressions in baseline metrics
-- Create summary dashboards comparing key metrics across releases
+| Performance Layer | HAR Parser | Lighthouse Parser |
+|-------------------|:----------:|:-----------------:|
+| API Response Times | Yes | — |
+| Request Timing Breakdown | Yes | — |
+| Transfer Size per Request | Yes | — |
+| Statistical Baselines (P90/P95) | Yes | — |
+| Core Web Vitals (FCP, LCP, CLS) | — | Yes |
+| Main Thread Activity | — | Yes |
+| JS Execution Profiling | — | Yes |
+| Resource Efficiency | — | Yes |
+| Diagnostics & Opportunities | — | Yes |
+| Page Load Timings | Yes | — |
+| Server Response Time | Yes | Yes |
+| Category Scores | — | Yes |
 
 ## Project Structure
 
 ```
 project-root/
-├── har-to-excel.js          # Main converter script (HARtoExcelConverter class)
-├── package.json             # Project metadata and dependencies
-├── package-lock.json        # Locked dependency versions (do not edit)
-├── README.md                # This file - project documentation
-├── harRepo/                 # Input directory - place .har files here
-│   ├── homepage.har
-│   ├── api-test.har
-│   └── checkout.har
-├── node_modules/            # Installed dependencies (auto-generated)
-│   ├── exceljs/
-│   ├── fs-extra/
-│   └── xlsx/
-└── output.xlsx              # Generated Excel workbook (overwritten on each run)
+├── har-to-excel.js             # HAR parser (HARtoExcelConverter class)
+├── lighthouseParcer.js          # Lighthouse parser (LighthouseToExcelConverter class)
+├── package.json                 # Project metadata and dependencies
+├── package-lock.json            # Locked dependency versions
+├── README.md                    # This file
+├── harRepo/                     # Input: place .har files here
+│   ├── Landing.har
+│   └── WellProgram.har
+├── lighthouseRepo/              # Input: place Lighthouse .json exports here
+│   ├── landing.json
+│   └── wellprogram.json
+├── output.xlsx                  # Generated HAR analysis workbook
+├── lighthouse-output.xlsx       # Generated Lighthouse analysis workbook
+└── node_modules/                # Installed dependencies (auto-generated)
 ```
-
-### Directory Descriptions
-
-- **har-to-excel.js**: The main application script. Contains the `HARtoExcelConverter` class which handles HAR parsing, categorization, statistical calculations, Excel generation, and styling.
-
-- **harRepo/**: Input directory where all source HAR files should be placed. The tool automatically discovers and processes all `.har` files in this directory.
-
-- **output.xlsx**: The generated Excel workbook containing processed HAR data. Overwritten each time the tool runs, so save previous versions if needed.
 
 ## Tech Stack
 
-### Core Dependencies
+| Package | Purpose |
+|---------|---------|
+| exceljs | Excel workbook creation, styling, and cell manipulation |
+| fs-extra | Enhanced file system operations |
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| exceljs | 4.4.0 | Excel workbook creation, styling, and cell manipulation |
-| fs-extra | 11.3.3 | Enhanced file system operations (cross-platform compatibility) |
-| xlsx | 0.18.5 | Additional spreadsheet processing functionality |
+**Runtime**: Node.js 12.0+ (14+ recommended), Windows / macOS / Linux
 
-### Runtime
+## Architecture
 
-- **Node.js**: 12.0+ (recommend 14+ for best compatibility)
-- **Platform**: Windows, macOS, Linux
+### HAR Parser (`HARtoExcelConverter`)
+| Method | Description |
+|--------|-------------|
+| `processHARFile(filePath)` | Parses HAR JSON, extracts 14 columns per request plus page timings |
+| `categorize(url)` | Auto-categorizes URLs by path segment extraction |
+| `addSheet(sheetName, rows, pageTimings)` | Creates styled worksheet with data table, baseline, and page timings |
+| `addHelperSheet()` | Creates reference documentation worksheet |
+| `median(arr)` / `percentile(arr, p)` | Statistical calculation helpers |
+| `save(outputPath)` | Writes workbook to disk |
 
-### Architecture
+### Lighthouse Parser (`LighthouseToExcelConverter`)
+| Method | Description |
+|--------|-------------|
+| `processLighthouseFile(filePath)` | Parses Lighthouse JSON, extracts all metrics across 8 categories |
+| `getScoreStyle(score)` / `getScoreLabel(score)` | Color-code and label scores (Good/Needs Work/Poor) |
+| `addSectionTitle(ws, title, totalCols)` | Adds styled section header row |
+| `addSubHeader(ws, headers)` | Adds styled sub-header row |
+| `addSheet(sheetName, report)` | Creates full worksheet with all 8 sections |
+| `addHelperSheet()` | Creates Lighthouse metric reference worksheet |
+| `save(outputPath)` | Writes workbook to disk |
 
-The tool uses a class-based architecture:
+## Baseline Metrics Collection Process
 
-- **HARtoExcelConverter**: Main class managing the conversion process
-  - `processHARFile(filePath)`: Parses HAR JSON and extracts request data
-  - `categorize(url)`: Auto-categorizes URLs based on path segments
-  - `addSheet(sheetName, rows, pageTimings)`: Creates styled worksheet with data
-  - `addHelperSheet()`: Creates reference documentation worksheet
-  - `save(outputPath)`: Writes workbook to disk
-  - `median(arr)` / `percentile(arr, p)`: Statistical calculation helpers
+- Enable **Preserve Logs** and **Disable Cache** in browser DevTools to ensure complete, uncached network capture.
+- Record the Networks tab activity and export the HAR file once the page reaches a fully static/idle state.
+- Run **Lighthouse audits** from the Lighthouse tab with Navigation mode and Desktop preset; export as JSON once the report is generated.
+- Perform **3-5 separate runs per page** with cache cleared between each iteration to minimize skew from cold cache, DNS resolution, and network jitter.
+- Repeat captures **periodically over time** to establish trend data and identify performance regressions.
+- Feed collected HAR files and Lighthouse JSON exports into the respective parser tools to extract metrics and compute baselines.
+
+## Interpretation Tips
+
+- **Focus on P90/P95, not Average**: Percentile metrics represent real user experience; averages are skewed by outliers
+- **TTFB is Key**: High Wait/TTFB indicates server-side bottlenecks (database queries, computation, network latency)
+- **LCP drives user perception**: If users feel the page is "slow", LCP is usually the culprit
+- **TBT predicts interactivity**: High TBT means the page looks loaded but doesn't respond to clicks
+- **Main Thread Breakdown reveals root cause**: Script Evaluation dominating? Optimize bundle size. Style & Layout? Reduce DOM complexity
+- **Resource Summary identifies waste**: Large script bundles, unused CSS, uncompressed assets are quick wins
+- **Compare categories separately**: API endpoints and static assets have different performance profiles
 
 ## Common Issues and Troubleshooting
 
-### No .har files found
+### No files found
 
-**Problem**: "No .har files found in harRepo/ directory."
+**Problem**: "No .har files found" or "No .json files found"
 
 **Solution**:
-1. Verify the `harRepo/` directory exists in the project root
-2. Check that .har files are in the correct directory (case-sensitive on some systems)
-3. Ensure filenames end with `.har` (not `.HAR` or `.txt`)
+1. Verify the `harRepo/` or `lighthouseRepo/` directory exists in the project root
+2. Check that files have the correct extension (`.har` or `.json`)
+3. Ensure files are placed directly in the directory (not in subdirectories)
 
-### HAR file parse error
+### Parse error
 
 **Problem**: "SyntaxError: Unexpected token..." or "Invalid JSON"
 
 **Solution**:
-1. Verify the HAR file is valid JSON (open in a text editor and check structure)
-2. Ensure the file was exported correctly from DevTools
-3. Check that the file isn't corrupted (re-export from browser)
+1. Verify the file is valid JSON
+2. For HAR: re-export from DevTools using "Save all as HAR with content"
+3. For Lighthouse: re-export using "Save as JSON" from the export menu
 
-### Excel file is locked/in use
+### Excel file is locked
 
 **Problem**: "Error: Cannot write file - file is locked"
 
 **Solution**:
-1. Close the `output.xlsx` file if open in Excel
+1. Close the output file if open in Excel
 2. Ensure no other process is using the file
-3. Try renaming the existing file and running again
+3. Rename the existing file and run again
 
-### Out of memory with large HAR files
+### Out of memory
 
-**Problem**: "JavaScript heap out of memory" or similar
+**Problem**: "JavaScript heap out of memory"
 
 **Solution**:
-1. Increase Node.js heap memory: `node --max-old-space-size=4096 har-to-excel.js`
-2. Split large HAR files into smaller chunks and process separately
+1. Increase heap: `node --max-old-space-size=4096 har-to-excel.js`
+2. Split large files into smaller chunks
 3. Upgrade to Node.js 16+ for improved memory management
 
 ## FAQs
 
-### Can I use HAR files from other sources?
+### Can I use HAR files from any browser?
+Yes. HAR is a standardized format (HAR 1.2 specification), so files from Chrome, Firefox, Safari, or any compliant tool will work.
 
-Yes. HAR is a standardized format, so files from any source compatible with the standard HAR 1.2 specification will work.
+### Can I use Lighthouse JSON from the CLI?
+Yes. JSON exports from `npx lighthouse --output=json` have the same structure as DevTools exports.
 
-### How often should I capture baseline HAR files?
+### How often should I capture baselines?
+Before each major release, after infrastructure changes, or monthly for continuous monitoring. More frequent captures provide better trend data.
 
-Establish baselines before each major release, after significant infrastructure changes, or monthly for continuous monitoring. More frequent captures provide better trend data.
+### Can I edit the Excel output?
+Yes. Both output files are standard `.xlsx` files. However, re-running the tool overwrites the file.
 
-### Can I edit the Excel output after generation?
+### Why are my Lighthouse scores different each run?
+Lighthouse scores fluctuate due to CPU load, network conditions, and background processes. Run 3-5 times and compare medians for reliable baselines.
 
-Yes. The Excel file is a standard .xlsx file that can be edited in any spreadsheet application. However, if you re-run the tool, your edits will be lost (the file is overwritten).
-
-### Why is my TTFB so high?
-
-High TTFB (Wait/TTFB (ms)) typically indicates:
-- Server-side processing delays (database queries, computation)
-- Network latency between client and server
-- Server resource constraints (CPU, memory)
-- Geographic distance between client and server
-
-Investigate server logs and consider moving services closer to users or optimizing backend code.
-
-### How does URL categorization work?
-
-The tool:
-1. Identifies static assets by file extension (.js, .css, .png, etc.) → labeled "Static Asset"
-2. Extracts path segments and skips common prefixes (/api, /v1, /v2, /rest, /web, /app, etc.)
-3. Uses the first meaningful segment as category (e.g., /api/v1/users/123 → "Users")
+### How does URL categorization work in the HAR parser?
+1. Identifies static assets by file extension (.js, .css, .png, etc.) as "Static Asset"
+2. Extracts path segments, skipping common prefixes (/api, /v1, /v2, /rest, /web, /app, etc.)
+3. Uses the first meaningful segment as category (e.g., `/api/v1/users/123` becomes "Users")
 4. Converts to Title Case for readability
 5. Defaults to "General" if no meaningful segment found
 
-### Can I automate this process?
-
-Yes. Schedule the script with system task scheduler:
-
-**Windows (Task Scheduler)**:
-```batch
-schtasks /create /tn "HAR-to-Excel Daily" /tr "node /path/to/project/har-to-excel.js" /sc daily /st 09:00
-```
-
-**macOS/Linux (cron)**:
-```bash
-0 9 * * * cd /path/to/project && node har-to-excel.js
-```
-
-### What versions of Node.js are supported?
-
-Node.js 12.0 and higher are supported. Version 14+ is recommended for best performance and security. Check your version with `node --version`.
-
-## Performance Considerations
-
-### Large HAR Files (>10MB)
-
-Processing very large HAR files may take several seconds. The tool processes files sequentially, so expect:
-- 1-5 MB HAR file: < 1 second processing
-- 5-20 MB HAR file: 1-5 seconds processing
-- 20+ MB HAR file: 5-30 seconds processing
-
-### Memory Usage
-
-Memory usage is proportional to the number of requests. Typical usage:
-- 50 requests: ~2-5 MB
-- 500 requests: ~10-15 MB
-- 5000+ requests: 50+ MB
-
-If processing multiple large HAR files, increase Node.js heap with `--max-old-space-size`.
-
-### Excel File Size
-
-Output file size depends on:
-- Number of requests (100 requests ≈ 50-100 KB)
-- Number of HAR files (each adds 5-15 KB baseline)
-- URL length and complexity
-
-Typical output.xlsx file sizes:
-- 5 HAR files, 50 requests each: 300-500 KB
-- 10 HAR files, 100 requests each: 800 KB - 1.5 MB
-
-## License
-
-ISC License. See package.json for details.
-
-## Support and Contribution
-
-For bug reports, feature requests, or contributions, please review the project repository or contact the development team.
-
 ---
 
-**Last Updated**: February 2025
-**Version**: 1.0.0
-**Tool**: HAR-to-Excel Performance Analysis Tool
+**Last Updated**: February 2026
+**Version**: 2.0.0
+**Toolkit**: UI Performance Analysis Toolkit
