@@ -66,9 +66,9 @@ This tool is essential for performance engineers, QA teams, and DevOps professio
 
 1. Clone or download the project to your local machine
 
-2. Navigate to the project directory:
+2. Navigate to the project directory (where `package.json` is located):
    ```bash
-   cd c:\OrgProjects\Halliburton
+   cd /path/to/project
    ```
 
 3. Install dependencies:
@@ -101,13 +101,13 @@ This tool is essential for performance engineers, QA teams, and DevOps professio
 node har-to-excel.js
 
 # Expected output:
-# Found 3 HAR file(s) in c:\OrgProjects\Halliburton\harRepo
+# Found 3 HAR file(s) in /path/to/project/harRepo
 #
-# Reading HAR file: c:\OrgProjects\Halliburton\harRepo\homepage.har
+# Reading HAR file: /path/to/project/harRepo/homepage.har
 # Parsed 42 entries from homepage.har
 # Added sheet: "homepage" with 42 rows
 #
-# Reading HAR file: c:\OrgProjects\Halliburton\harRepo\api-test.har
+# Reading HAR file: /path/to/project/harRepo/api-test.har
 # Parsed 128 entries from api-test.har
 # Added sheet: "api-test" with 128 rows
 #
@@ -365,7 +365,7 @@ Effective performance baselining requires consistent methodology to ensure meani
 ## Project Structure
 
 ```
-c:\OrgProjects\Halliburton\
+project-root/
 ├── har-to-excel.js          # Main converter script (HARtoExcelConverter class)
 ├── package.json             # Project metadata and dependencies
 ├── package-lock.json        # Locked dependency versions (do not edit)
@@ -493,7 +493,7 @@ Yes. Schedule the script with system task scheduler:
 
 **Windows (Task Scheduler)**:
 ```batch
-schtasks /create /tn "HAR-to-Excel Daily" /tr "node c:\OrgProjects\Halliburton\har-to-excel.js" /sc daily /st 09:00
+schtasks /create /tn "HAR-to-Excel Daily" /tr "node /path/to/project/har-to-excel.js" /sc daily /st 09:00
 ```
 
 **macOS/Linux (cron)**:
